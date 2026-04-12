@@ -38,7 +38,7 @@ These three problems compound each other. A ghosted applicant loses trust, disen
 | **Funnel drop-off** | **Interview Invite** is the single largest drop-off point losing **70%** of users — filterable by device and acquisition source |
 | **Cohort retention decay** | Week-1 avg retention **43.8%** decays to **23.7%** by Week-4 — steepest drop identifies highest-ROI intervention window |
 | **Platform health score** | Composite score (Activation 35% + Non-Ghosting 30% + Non-Churn 25% + Relevance 10%) gives leadership a single weekly health number |
-| **LTV at risk** | **$$410,680** in estimated platform LTV sits in churned users — quantifies the revenue case for re-engagement campaigns |
+| **LTV at risk** | **$410,680** in estimated platform LTV sits in churned users — quantifies the revenue case for re-engagement campaigns |
 | **Recruiter response rate** | Response rate by engagement segment surfaces which user groups face the worst recruiter silence |
 | **AARRR framework** | All five growth stages mapped to live metrics — Acquisition, Activation, Retention, Referral, Revenue proxy |
 
