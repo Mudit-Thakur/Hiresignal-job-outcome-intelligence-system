@@ -243,9 +243,10 @@ FROM user_summary
 
 UNION ALL SELECT 'Retention',
     COUNT(DISTINCT user_id),
-    'Users active beyond Week 1'
-FROM cohort_activity
-WHERE week_number >= 1
+    'Users retained after 30 days'
+FROM user_summary
+WHERE days_since_signup >= 30
+AND days_since_active <= 30
 
 UNION ALL SELECT 'Referral',
     COUNT(DISTINCT user_id),
