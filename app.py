@@ -129,15 +129,25 @@ if page == "📊 Overview":
         col_ns2.metric("Peak Week",  f"{int(ns_df['weekly_active_applicants'].max()):,}")
         col_ns3.metric("Avg Weekly", f"{int(ns_df['weekly_active_applicants'].mean()):,}")
 
-        fig_ns = go.Figure(go.Scatter(
+        fig_ns = go.Figure()
+        fig_ns.add_trace(go.Scatter(
             x=ns_df["event_week"],
             y=ns_df["weekly_active_applicants"],
             mode="lines+markers",
+            name="Weekly Active Applicants",
             fill="tozeroy",
             line=dict(color="#636EFA", width=2),
             marker=dict(size=5),
             fillcolor="rgba(99,110,250,0.15)",
         ))
+        if "rolling_4w_avg" in ns_df.columns:
+            fig_ns.add_trace(go.Scatter(
+                x=ns_df["event_week"],
+                y=ns_df["rolling_4w_avg"],
+                mode="lines",
+                name="4W Rolling Avg",
+                line=dict(color="#FFA500", width=2, dash="dot"),
+            ))
         fig_ns.update_layout(
             height=220,
             margin=dict(t=10, b=10, l=10, r=10),
@@ -146,6 +156,7 @@ if page == "📊 Overview":
             font=dict(color="white"),
             xaxis_title="Week",
             yaxis_title="Active Applicants",
+            legend=dict(bgcolor="rgba(0,0,0,0)"),
         )
         st.plotly_chart(fig_ns, use_container_width=True)
 
@@ -164,12 +175,32 @@ if page == "📊 Overview":
 
     st.divider()
 
+    # ── Platform Health Score ─────────────────────────────────────────────────
+    try:
+        phs = query("SELECT * FROM platform_health_score").iloc[0]
+        st.subheader("🏥 Platform Health Score")
+        h1, h2, h3, h4, h5 = st.columns(5)
+        score_val = float(phs["health_score"])
+        score_color = "🟢" if score_val >= 65 else "🟡" if score_val >= 45 else "🔴"
+        h1.metric(f"{score_color} Health Score", f"{score_val}/100")
+        h2.metric("Activation",  f"{phs['activation_rate_pct']}%")
+        h3.metric("Ghosting",    f"{phs['ghosting_rate_pct']}%")
+        h4.metric("Churn",       f"{phs['churn_rate_pct']}%")
+        h5.metric("Relevance",   f"{phs['avg_relevance_score']}")
+        st.caption(
+            "Health Score = Activation(35%) + Non-Ghosting(30%) + Non-Churn(25%) + Relevance(10%)"
+        )
+    except Exception:
+        pass
+
+    st.divider()
+
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Engagement Distribution")
         eng_df = pd.DataFrame({
-            "Segment": ["High (10+ events)", "Medium (5-9)", "Low (<5)"],
+            "Segment": ["High (10+ events)", "Medium (3-9)", "Low (<3)"],
             "Users": [
                 int(kpi["high_engagement_users"]),
                 int(kpi["medium_engagement_users"]),
@@ -223,44 +254,10 @@ if page == "📊 Overview":
     st.caption("How JOIS metrics map to the standard product growth framework")
 
     try:
-        funnel_top    = query("SELECT users_reached FROM funnel_metrics WHERE step_num = 1").iloc[0]["users_reached"]
-        funnel_signup = query("SELECT users_reached FROM funnel_metrics WHERE step_num = 2").iloc[0]["users_reached"]
+        aarrr_db = query("SELECT * FROM aarrr_summary")
+        st.dataframe(aarrr_db, use_container_width=True, hide_index=True)
     except Exception:
-        funnel_top    = 0
-        funnel_signup = 0
-
-    aarrr_df = pd.DataFrame({
-        "Stage": [
-            "Acquisition", "Activation", "Retention", "Referral", "Revenue Proxy"
-        ],
-        "JOIS Metric": [
-            "Users who reached session_start",
-            "Users who completed profile AND applied",
-            "Users active beyond Week 1 (inverse of churn)",
-            "Not tracked — referral events not modeled",
-            "Interview invite rate (proxy for job placement value)",
-        ],
-        "Value": [
-            f"{int(funnel_top):,} users",
-            f"{kpi['activation_rate_pct']}%",
-            f"{round(100 - float(kpi['churn_rate_pct']), 1)}% retained",
-            "— gap",
-            f"{round(100 - float(kpi['ghosting_rate_pct']), 1)}% invite rate",
-        ],
-        "Status": [
-            "✅ Tracked",
-            "✅ Tracked",
-            "✅ Tracked",
-            "⚠️ Not Modeled",
-            "✅ Proxy Tracked",
-        ],
-    })
-    st.dataframe(aarrr_df, use_container_width=True, hide_index=True)
-    st.warning(
-        "**Portfolio Upgrade identified**: Referral cannot be tracked in this project. "
-        "But in a real system, addding 'referral' as an acquisition source and track "
-        "invite-a-friend events will close the AARRR loop completely."
-    )
+        st.warning("AARRR table not found. Re-run pipeline.")
 
     st.divider()
 
@@ -274,7 +271,7 @@ if page == "📊 Overview":
         )
         st.warning(
             f"**Ghosting crisis**: {kpi['ghosting_rate_pct']}% of applicants "
-            "have received zero recruiter response — which directly erodes platform trust."
+            "have received zero recruiter response — directly eroding platform trust."
         )
     with ins2:
         st.error(
@@ -283,7 +280,7 @@ if page == "📊 Overview":
         )
         st.success(
             f"**Relevance opportunity**: Avg score {score:.3f}. "
-            "Improving ML ranking and suggesting relevant jobs could significantly boost apply rates."
+            "Improving ML ranking could significantly boost apply rates."
         )
 
 
@@ -619,7 +616,7 @@ elif page == "🔁 Cohort Retention":
         st.warning("No cohort data available. Re-run the pipeline.")
         st.stop()
 
-    max_week  = int(ret_df["week_number"].max())
+    max_week   = int(ret_df["week_number"].max())
     total_rows = len(ret_df)
     st.caption(f"Data check: {total_rows} rows, max week_number = {max_week}")
 
@@ -708,6 +705,36 @@ elif page == "🔁 Cohort Retention":
 
     st.divider()
 
+    # ── Retention Health Flags ────────────────────────────────────────────────
+    st.subheader("🚦 Cohort Retention Health")
+    st.caption("Week-4 retention benchmark: Strong ≥40% | Moderate ≥20% | Weak ≥10% | Critical <10%")
+    try:
+        rh_df = query("SELECT * FROM cohort_retention_health ORDER BY cohort_week")
+        health_colors = {
+            "Strong": "🟢", "Moderate": "🟡",
+            "Weak": "🟠", "Critical": "🔴", "Insufficient Data": "⚪"
+        }
+        rh_df["Health"] = rh_df["retention_health"].map(
+            lambda x: f"{health_colors.get(x, '')} {x}"
+        )
+        st.dataframe(
+            rh_df[[
+                "cohort_week", "cohort_size", "week1_retention",
+                "week2_retention", "week4_retention", "week8_retention",
+                "week1_to_week4_decay", "Health"
+            ]].rename(columns={
+                "cohort_week": "Cohort", "cohort_size": "Size",
+                "week1_retention": "W1 %", "week2_retention": "W2 %",
+                "week4_retention": "W4 %", "week8_retention": "W8 %",
+                "week1_to_week4_decay": "W1→W4 Decay", "Health": "Health"
+            }),
+            use_container_width=True, hide_index=True,
+        )
+    except Exception:
+        st.warning("Retention health table not found. Re-run pipeline.")
+
+    st.divider()
+
     # ── Behavioral Cohort Retention ───────────────────────────────────────────
     st.subheader("🧠 Behavioral Cohort Retention")
     st.caption(
@@ -786,7 +813,8 @@ elif page == "👥 Segmentation":
             ROUND(AVG(is_churned)*100, 1)         AS churn_rate,
             ROUND(AVG(job_views), 1)              AS avg_job_views,
             ROUND(AVG(job_applies), 1)            AS avg_applies,
-            ROUND(AVG(relevance_score), 3)        AS avg_relevance
+            ROUND(AVG(relevance_score), 3)        AS avg_relevance,
+            ROUND(AVG(recruiter_response_rate)*100, 1) AS avg_response_rate
         FROM user_summary
         GROUP BY engagement_segment
         ORDER BY CASE engagement_segment
@@ -825,6 +853,7 @@ elif page == "👥 Segmentation":
             "activation_rate": "Activation %", "ghosting_rate": "Ghosting %",
             "churn_rate": "Churn %", "avg_job_views": "Avg Views",
             "avg_applies": "Avg Applies", "avg_relevance": "Avg Relevance",
+            "avg_response_rate": "Recruiter Response Rate %",
         }),
         use_container_width=True, hide_index=True,
     )
@@ -941,6 +970,30 @@ elif page == "👻 Ghosting & Churn":
     st.plotly_chart(fig_sankey, use_container_width=True)
 
     st.divider()
+    st.subheader("📬 Recruiter Response Rate by Segment")
+    try:
+        rrr_df = query("""
+            SELECT engagement_segment,
+                COUNT(*) AS users,
+                ROUND(AVG(recruiter_response_rate)*100, 1) AS avg_response_rate_pct,
+                ROUND(AVG(is_ghosted)*100, 1) AS ghosting_rate_pct
+            FROM user_summary
+            WHERE job_applies > 0
+            GROUP BY engagement_segment
+            ORDER BY CASE engagement_segment
+                WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END
+        """)
+        st.dataframe(rrr_df.rename(columns={
+            "engagement_segment": "Segment",
+            "users": "Users",
+            "avg_response_rate_pct": "Avg Response Rate %",
+            "ghosting_rate_pct": "Ghosting Rate %",
+        }), use_container_width=True, hide_index=True)
+        st.caption("Response Rate = Interview Invites ÷ Total Applications per user")
+    except Exception:
+        st.warning("Recruiter response rate unavailable. Re-run pipeline.")
+
+    st.divider()
     st.subheader("📌 Key Findings")
     col1, col2 = st.columns(2)
     delta = gc_ghosted - gc_not_ghosted
@@ -974,14 +1027,13 @@ elif page == "💰 LTV & Revenue":
     st.title("💰 LTV & Revenue Intelligence")
     st.caption(
         "Connecting behavioral signals to estimated platform revenue. "
-        "Model: interview_invite = $150 placement fee | job_apply = $5 data signal | activated = $20 premium"
+        "Model: interview_invite = $150 placement fee | job_apply = $70 data signal | activated = $30 premium"
     )
 
     ltv_df   = query("SELECT * FROM ltv_cac_summary ORDER BY ltv_cac_ratio DESC")
     proxy_df = query("SELECT * FROM ltv_proxy")
     kpi      = query("SELECT * FROM kpi_summary").iloc[0]
 
-    # ── Summary KPIs ──────────────────────────────────────────────────────────
     total_ltv   = proxy_df["estimated_ltv_usd"].sum()
     ghosted_ltv = proxy_df[proxy_df["is_ghosted"] == 1]["estimated_ltv_usd"].sum()
     churn_ltv   = proxy_df[proxy_df["is_churned"] == 1]["estimated_ltv_usd"].sum()
@@ -997,7 +1049,6 @@ elif page == "💰 LTV & Revenue":
 
     st.divider()
 
-    # ── LTV:CAC Table ─────────────────────────────────────────────────────────
     st.subheader("LTV:CAC Ratio by Segment & Acquisition Source")
     st.caption("Industry benchmark for healthy SaaS: LTV:CAC ≥ 3.0")
 
@@ -1022,7 +1073,6 @@ elif page == "💰 LTV & Revenue":
 
     st.divider()
 
-    # ── LTV Distribution ──────────────────────────────────────────────────────
     st.subheader("LTV Distribution by Engagement Segment")
 
     fig_ltv = go.Figure()
@@ -1042,7 +1092,6 @@ elif page == "💰 LTV & Revenue":
 
     st.divider()
 
-    # ── Revenue at Risk ───────────────────────────────────────────────────────
     st.subheader("💸 Revenue at Risk Breakdown")
 
     fig_risk = go.Figure(go.Bar(
