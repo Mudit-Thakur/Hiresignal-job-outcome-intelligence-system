@@ -15,8 +15,9 @@ SQL_DIR = os.path.join(ROOT, "sql")
 SQL_FILES = [
     "01_stg_events.sql",
     "02_funnel.sql",
-    "04_metrics.sql",
+    "04a_user_summary.sql",
     "03_cohort.sql",
+    "04b_retention_health.sql",
 ]
 
 RAW_CSV = os.path.join(ROOT, "data", "raw_events.csv")
