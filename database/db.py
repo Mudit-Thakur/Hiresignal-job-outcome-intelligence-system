@@ -55,6 +55,9 @@ def execute_sql_file(conn: sqlite3.Connection, path: str) -> None:
     statements = [s.strip() for s in sql.split(";") if s.strip()]
     cur = conn.cursor()
     for stmt in statements:
+     try:
         cur.execute(stmt)
+     except Exception as e:
+        raise Exception(f"Failed on statement:\n{stmt}\n\nError: {e}")
     conn.commit()
     print(f"  ✅ Executed: {os.path.basename(path)}")
