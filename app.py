@@ -8,7 +8,7 @@ import streamlit as st
 ROOT = os.path.dirname(__file__)
 sys.path.insert(0, ROOT)
 
-DB_PATH = os.path.join(ROOT, "jois.db")
+DB_PATH = "/tmp/jois.db" if os.environ.get("HOME") == "/home/appuser" else os.path.join(ROOT, "jois.db")
 
 st.set_page_config(
     page_title="JOIS — Job Outcome Intelligence System",

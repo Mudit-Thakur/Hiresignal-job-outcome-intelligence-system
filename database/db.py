@@ -1,7 +1,12 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "jois.db")
+import sqlite3
+import os
+
+# Use /tmp on Streamlit Cloud (writable), local repo path everywhere else
+_LOCAL = os.path.join(os.path.dirname(__file__), "..", "jois.db")
+DB_PATH = "/tmp/jois.db" if os.environ.get("HOME") == "/home/appuser" else _LOCAL
 
 
 def get_connection() -> sqlite3.Connection:
