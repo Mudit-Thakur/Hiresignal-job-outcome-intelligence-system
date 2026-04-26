@@ -246,4 +246,4 @@ This system mirrors the analytics stack used by product and data teams at job ma
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+GNU General Public License v3.0 (GPL v3) — see [LICENSE](LICENSE) for details.
